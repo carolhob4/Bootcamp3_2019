@@ -1,21 +1,21 @@
 
 /* Dependencies */
-var mongoose = require('mongoose'), 
+var mongoose = require('mongoose'),
     Listing = require('../models/listings.server.model.js'),
     coordinates = require('./coordinates.server.controller.js');
-    
+
 /*
   In this file, you should use Mongoose queries in order to retrieve/add/remove/update listings.
-  On an error you should send a 404 status code, as well as the error message. 
+  On an error you should send a 404 status code, as well as the error message.
   On success (aka no error), you should send the listing(s) as JSON in the response.
 
-  HINT: if you are struggling with implementing these functions refer back to this tutorial 
+  HINT: if you are struggling with implementing these functions refer back to this tutorial
   https://www.callicoder.com/node-js-express-mongodb-restful-crud-api-tutorial/
   or
   https://medium.com/@dinyangetoh/how-to-build-simple-restful-api-with-nodejs-expressjs-and-mongodb-99348012925d
-  
 
-  If you are looking for more understanding of exports and export modules - 
+
+  If you are looking for more understanding of exports and export modules -
   https://www.sitepoint.com/understanding-module-exports-exports-node-js/
   or
   https://adrianmejia.com/getting-started-with-node-js-modules-require-exports-imports-npm-and-beyond/
@@ -30,11 +30,11 @@ exports.create = function(req, res) {
   /* save the coordinates (located in req.results if there is an address property) */
   if(req.results) {
     listing.coordinates = {
-      latitude: req.results.lat, 
+      latitude: req.results.lat,
       longitude: req.results.lng
     };
   }
- 
+
   /* Then save the listing */
   listing.save(function(err) {
     if(err) {
@@ -42,7 +42,7 @@ exports.create = function(req, res) {
       res.status(400).send(err);
     } else {
       res.json(listing);
-      console.log(listing)
+      console.log(listing);
     }
   });
 };
@@ -55,20 +55,71 @@ exports.read = function(req, res) {
 
 /* Update a listing - note the order in which this function is called by the router*/
 exports.update = function(req, res) {
+
+  if(!req.body){
+      return res.status(400).send(err);
+    }
+    //grabs the content we want to use
+  var content = req.body;
+  var coordContent = req.results;
+  //grabs the listing that wants to be edited
   var listing = req.listing;
 
-  /* Replace the listings's properties with the new properties found in req.body */
- 
-  /*save the coordinates (located in req.results if there is an address property) */
- 
-  /* Save the listing */
+//findby id just checks to see if the listing exsists
+  Listing.findById(listing.id, function(err, entry){
+    if(err){
+       res.status(400).send(err);
+    }
+  });
+  //if the error did not send then we know the listing that we are editing exsists
+  //and we can edit and save it
+    listing.code = content.code;
+    listing.name = content.name;
+
+    if(content.address){
+        listing.address = content.address;
+    }
+
+    //if coordinates (in req.results) then update them
+    if(coordContent){
+      listing.coordinates = {
+        latitude: coordContent.lat,
+        longitude: coordContent.lng
+      };
+    }
+
+    listing.save(function(err){
+      if(err){
+        console.log(err);
+         res.status(400).send(err);
+      }
+      else{
+        res.json(listing);
+        console.log(listing);
+      }
+    });
+
+
+
 
 };
+
+
+
 
 /* Delete a listing */
 exports.delete = function(req, res) {
   var listing = req.listing;
-
+  Listing.findOneAndDelete( {_id : listing.id}, function (err, entry){ //I DONT GET IT WTF
+    if(err){
+      console.log(err);
+       res.status(400).send(err);
+    }
+    else{
+      res.json(entry);
+      console.log(entry);
+    }
+  });
   /* Add your code to remove the listins */
 
 };
@@ -76,21 +127,35 @@ exports.delete = function(req, res) {
 /* Retreive all the directory listings, sorted alphabetically by listing code */
 exports.list = function(req, res) {
   /* Add your code */
+  //we sort by code so its alphabetical, and not by date added
+  Listing.find({}).sort('code').exec((err,entry)=>{
+    //if an error
+    if(err){
+      console.log(err);
+       res.status(400).send(err);
+    }
+    else{
+      res.json(entry);
+      console.log(entry);
+    }
+  })
 };
 
-/* 
-  Middleware: find a listing by its ID, then pass it to the next request handler. 
+/*
+  Middleware: find a listing by its ID, then pass it to the next request handler.
 
-  HINT: Find the listing using a mongoose query, 
-        bind it to the request object as the property 'listing', 
+  HINT: Find the listing using a mongoose query,
+        bind it to the request object as the property 'listing',
         then finally call next
  */
 exports.listingByID = function(req, res, next, id) {
+
   Listing.findById(id).exec(function(err, listing) {
     if(err) {
       res.status(400).send(err);
     } else {
       req.listing = listing;
+
       next();
     }
   });
